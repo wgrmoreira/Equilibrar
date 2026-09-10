@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Equilíbrio - A Torre Infinita</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@600;800&display=swap');
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            background-color: #1e1e24;
+            color: #ffffff;
+            font-family: 'Nunito', sans-serif;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            user-select: none;
+            touch-action: none; 
+        }
+
+        #game-wrapper {
+            position: fixed; 
+            top: 0; left: 0; right: 0; bottom: 0;
+            width: 100%; 
+            height: 100%;
+            background: linear-gradient(180deg, #181822 0%, #292a35 100%);
+            overflow: hidden;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+        }
+
+        canvas {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(24, 24, 34, 0.85);
+            backdrop-filter: blur(5px);
+            z-index: 20;
+            opacity: 1;
+            transition: opacity 0.4s ease;
+        }
+
+        .hidden { 
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* --- ARTE DA TELA INICIAL --- */
+        .balance-art {
+            position: relative;
+            width: 200px;
+            height: 120px;
+            margin-bottom: 20px;
+        }
+        .art-fulcrum {
+            position: absolute;
+            bottom: 0; left: 50%;
+            transform: translateX(-50%);
+            width: 0; height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-bottom: 35px solid #a4b0be;
+        }
+        .art-plank {
+            position: absolute;
+            bottom: 35px; left: 10%;
+            width: 80%; height: 6px;
+            background-color: #dfe4ea;
+            transform: rotate(-8deg);
+            transform-origin: center;
+            border-radius: 3px;
+        }
+        .art-box1 {
+            position: absolute;
+            bottom: 48px; left: 20%;
+            width: 30px; height: 30px;
+            background-color: #FF4757;
+            transform: rotate(-8deg);
+            border-radius: 4px;
+        }
+        .art-box2 {
+            position: absolute;
+            bottom: 40px; right: 25%;
+            width: 40px; height: 40px;
+            background-color: #1E90FF;
+            transform: rotate(-8deg);
+            border-radius: 4px;
+        }
+
+        h1 {
+            font-family: 'Fredoka One', cursive;
+            font-size: 3.5rem;
+            margin: 0;
+            color: #FF4757;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            letter-spacing: 2px;
+            text-align: center;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            color: #a4b0be;
+            margin: 10px 0 40px 0;
+            text-align: center;
+            padding: 0 20px;
+        }
+
+        .stats-box {
+            background: rgba(0,0,0,0.4);
+            border-radius: 20px;
+            padding: 25px 50px;
+            margin-bottom: 30px;
+            text-align: center;
+            border: 2px solid rgba(255,255,255,0.05);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .stats-text {
+            font-size: 1.2rem;
+            color: #dfe4ea;
+            margin: 5px 0;
+        }
+        
+        .stats-highlight {
+            font-family: 'Fredoka One', cursive;
+            color: #FFD32A;
+            font-size: 2.2rem;
+            display: block;
+            margin-top: 5px;
+        }
+
+        button {
+            background: #FF4757;
+            color: #ffffff;
+            border: none;
+            padding: 15px 50px;
+            font-size: 1.3rem;
+            font-family: 'Fredoka One', cursive;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #d63031, 0 10px 20px rgba(0,0,0,0.3);
+            transition: transform 0.1s, box-shadow 0.1s;
+            text-transform: uppercase;
+        }
+
+        button:active {
+            transform: translateY(6px);
+            box-shadow: 0 0 0 #d63031, 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        #ui-ingame {
+            position: absolute;
+            top: 25px;
+            left: 20px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .score-display {
+            font-family: 'Fredoka One', cursive;
+            font-size: 1.5rem;
+            color: #ffffff;
+            text-shadow: 0 4px 6px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+        
+        .score-display span {
+            font-size: 3rem;
+            color: #FFD32A;
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 2.8rem; }
+            .subtitle { font-size: 1rem; margin-bottom: 30px; }
+            .stats-box { padding: 15px 30px; margin-bottom: 20px; }
+            .stats-text { font-size: 1rem; }
+            .stats-highlight { font-size: 1.8rem; }
+            button { padding: 12px 40px; font-size: 1.1rem; }
+            
+            #ui-ingame { top: 15px; left: 15px; }
+            .score-display { font-size: 1.2rem; }
+            .score-display span { font-size: 2.2rem; }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+</head>
+<body>
+
+    <div id="game-wrapper">
+        <div id="ui-ingame" class="hidden">
+            <div class="score-display"><span id="current-height">0</span> cm</div>
+        </div>
+
+        <div id="canvas-container"></div>
+
+        <div id="start-screen" class="overlay">
+            <div class="balance-art">
+                <div class="art-fulcrum"></div>
+                <div class="art-plank"></div>
+                <div class="art-box1"></div>
+                <div class="art-box2"></div>
+            </div>
+            <h1>Equilíbrio!</h1>
+            <div class="subtitle">Arraste para mirar e solte o dedo para largar a peça.<br>A altura só conta se a pedra ficar firme e não cair da base!</div>
+            <button id="btn-start" onmouseenter="playHover()" onclick="startGame()">Jogar</button>
+        </div>
+
+        <div id="game-over-screen" class="overlay hidden">
+            <h1>Colapso!</h1>
+            <div class="stats-box">
+                <div class="stats-text">Altura Estabilizada: <span id="final-score" class="stats-highlight">0 cm</span></div>
+                <div class="stats-text" style="margin-top: 15px;">Recorde Atual: <span id="final-record" class="stats-highlight" style="color: #0be881;">0 cm</span></div>
+            </div>
+            <button onmouseenter="playHover()" onclick="resetGame()">Tentar Novamente</button>
+        </div>
+    </div>
+
+    <script>
+        // --- SISTEMA DE ÁUDIO ---
+        let audioCtx;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        document.body.addEventListener('pointerdown', initAudio, { once: true });
+
+        function playSoftTone(type, freq, decay, vol) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + decay);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + decay);
+        }
+
+        function playChord(freqs, duration, vol) {
+            if (!audioCtx) return;
+            freqs.forEach((f, i) => {
+                setTimeout(() => playSoftTone('sine', f, duration, vol), i * 50);
+            });
+        }
+
+        const playHover = () => playSoftTone('sine', 600, 0.1, 0.05);
+        const playClick = () => playSoftTone('triangle', 400, 0.15, 0.1);
+        const playSpawn = () => playSoftTone('sine', 880, 0.3, 0.05); 
+        const playDrop = () => playSoftTone('sine', 300, 0.4, 0.05); 
+        const playThud = () => playSoftTone('square', 150, 0.1, 0.03); 
+        const playSuccess = () => playChord([523.25, 659.25, 783.99], 0.5, 0.05); 
+        
+        const playLose = () => {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 1.0);
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 1.0);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 1.0);
+        };
+
+        // --- MOTOR DE FÍSICA ---
+        const Engine = Matter.Engine,
+              Render = Matter.Render,
+              Runner = Matter.Runner,
+              Bodies = Matter.Bodies,
+              Body = Matter.Body,
+              Composite = Matter.Composite,
+              Events = Matter.Events;
+
+        const engine = Engine.create({ enableSleeping: true });
+        
+        engine.positionIterations = 24; 
+        engine.velocityIterations = 24;
+        engine.gravity.y = 0.68; 
+
+        const world = engine.world;
+        
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        
+        const blockSize = 32; 
+        const pixelsPerCm = 4; 
+        
+        let state = "MENU"; 
+        let ghostPiece = null;
+        let activePiece = null; 
+        let currentPieceType = null;
+        let mouseX = width / 2;
+        
+        const groundY = height - 100;
+        const platformTopY = groundY - 15; 
+        
+        let towerTopY = platformTopY; 
+        let currentHeightCm = 0;
+        let dropTime = 0;
+        let zoom = 1.0;
+
+        let recordHeightCm = parseInt(localStorage.getItem('equilibrio_record')) || 0;
+        let recordHeightY = platformTopY - (recordHeightCm * pixelsPerCm);
+
+        const pixelRatio = window.devicePixelRatio || 1;
+
+        const render = Render.create({
+            element: document.getElementById('canvas-container'),
+            engine: engine,
+            options: {
+                width, height,
+                pixelRatio: pixelRatio, 
+                wireframes: false, 
+                background: 'transparent'
+            }
+        });
+        
+        Render.run(render);
+        const runner = Runner.create();
+        Runner.run(runner, engine);
+
+        // --- BASE IMPENETRÁVEL ---
+        const platform = Bodies.rectangle(width / 2, platformTopY + 100, 240, 200, { 
+            isStatic: true, 
+            friction: 1.0, 
+            plugin: { isPlatform: true }
+        });
+        Composite.add(world, [platform]);
+        
+        const vibrantColors = ['#FF4757', '#2ED573', '#1E90FF', '#FFA502', '#9B59B6', '#FF6B81', '#00D8D6', '#FFD32A'];
+
+        const pieceShapes = [
+            [[0,0], [0,1], [0,2], [0,3]], 
+            [[0,0], [1,0], [2,0], [3,0]], 
+            [[0,0], [1,0], [0,1], [1,1]], 
+            [[0,0], [1,0], [2,0], [1,1]], 
+            [[1,0], [0,1], [1,1], [2,1]], 
+            [[0,0], [0,1], [0,2], [1,2]], 
+            [[1,0], [1,1], [0,2], [1,2]], 
+            [[0,0], [1,0], [1,1], [2,1]], 
+            [[1,0], [2,0], [0,1], [1,1]], 
+            [[0,0], [0,1], [0,2]],        
+            [[0,0], [1,0], [2,0]],        
+            [[0,0], [1,0], [0,1]],        
+            [[1,0], [0,1], [1,1]],        
+            [[0,0], [0,1], [1,1]],        
+            [[0,0], [1,0], [1,1]],        
+            [[0,0], [0,1]],               
+            [[0,0], [1,0]]                
+        ];
+
+        function createPieceBody(x, y, shapeCoords, color, isGhost = false) {
+            let parts = [];
+            
+            for (let c of shapeCoords) {
+                parts.push(Bodies.rectangle(c[0]*blockSize, c[1]*blockSize, blockSize, blockSize));
+            }
+            
+            let body = Body.create({ 
+                parts: parts, 
+                friction: 1.0,           
+                restitution: 0.0,        
+                density: 0.005,          
+                frictionAir: 0.005,      
+                sleepThreshold: 40,      
+                isSensor: isGhost,
+                isStatic: isGhost,
+                render: { visible: false }, 
+                plugin: { 
+                    isPiece: true,
+                    color: color,
+                    isGhost: isGhost,
+                    isSettled: false
+                }
+            });
+
+            Body.setPosition(body, { x: x, y: y });
+            return body;
+        }
+
+        function getSpawnY() {
+            return towerTopY - (280 / zoom); 
+        }
+
+        function prepareNextPiece() {
+            const coords = pieceShapes[Math.floor(Math.random() * pieceShapes.length)];
+            const color = vibrantColors[Math.floor(Math.random() * vibrantColors.length)];
+            currentPieceType = { coords, color };
+            
+            if (ghostPiece) Composite.remove(world, ghostPiece);
+            
+            ghostPiece = createPieceBody(mouseX, getSpawnY(), currentPieceType.coords, currentPieceType.color, true);
+            Composite.add(world, ghostPiece);
+            state = "SPAWNING";
+            
+            playSpawn(); 
+        }
+
+        // --- CONTROLES ---
+        function updatePointer(clientX) {
+            if (state !== "SPAWNING") return;
+            const rect = render.canvas.getBoundingClientRect();
+            const scaleX = render.canvas.width / rect.width;
+            
+            let rawMouseX = (clientX - rect.left) * scaleX;
+            mouseX = ((rawMouseX - width / 2) / zoom) + (width / 2);
+            
+            const margin = blockSize * 2;
+            mouseX = Math.max(margin, Math.min(width - margin, mouseX));
+
+            if (ghostPiece) {
+                Body.setPosition(ghostPiece, { x: mouseX, y: getSpawnY() });
+            }
+        }
+
+        function triggerDrop() {
+            if (state === "SPAWNING" && ghostPiece) {
+                const spawnX = ghostPiece.position.x;
+                const spawnY = ghostPiece.position.y;
+                
+                Composite.remove(world, ghostPiece);
+                ghostPiece = null;
+
+                activePiece = createPieceBody(spawnX, spawnY, currentPieceType.coords, currentPieceType.color, false);
+                Body.setVelocity(activePiece, { x: 0, y: 0 });
+                Body.setAngularVelocity(activePiece, 0);
+
+                Composite.add(world, activePiece);
+                
+                playDrop(); 
+                state = "DROPPING";
+                dropTime = Date.now();
+            }
+        }
+
+        document.addEventListener('mousemove', (e) => updatePointer(e.clientX));
+        document.addEventListener('mouseup', (e) => {
+            if (e.target.tagName !== 'BUTTON') triggerDrop();
+        });
+
+        const gameWrapper = document.getElementById('game-wrapper');
+        gameWrapper.addEventListener('touchstart', (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            e.preventDefault(); 
+            updatePointer(e.touches[0].clientX);
+        }, { passive: false });
+        
+        gameWrapper.addEventListener('touchmove', (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            e.preventDefault(); 
+            updatePointer(e.touches[0].clientX);
+        }, { passive: false });
+
+        gameWrapper.addEventListener('touchend', (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            e.preventDefault(); 
+            triggerDrop(); 
+        }, { passive: false });
+
+        Events.on(engine, 'collisionStart', function(event) {
+            if(state === "MENU" || state === "GAMEOVER") return;
+            let playedThud = false;
+            for (let i = 0; i < event.pairs.length; i++) {
+                if (event.pairs[i].bodyA.speed > 0.5 || event.pairs[i].bodyB.speed > 0.5) {
+                    if (!playedThud) {
+                        playThud(); 
+                        playedThud = true;
+                    }
+                }
+            }
+        });
+
+        Events.on(engine, 'beforeUpdate', () => {
+            if (state === "MENU") return;
+
+            let isGameOver = false;
+            let allSettled = true;
+
+            for (let body of world.bodies) {
+                if (!body.plugin || !body.plugin.isPiece || body.plugin.isGhost) continue;
+
+                if (body.bounds.max.y > platformTopY + 30) {
+                    isGameOver = true;
+                }
+
+                if (!body.isSleeping && (body.speed > 0.2 || body.angularVelocity > 0.02)) {
+                    allSettled = false;
+                }
+            }
+
+            if (isGameOver && state !== "GAMEOVER") {
+                triggerGameOver();
+                return;
+            }
+
+            if (state === "GAMEOVER") return;
+
+            let requiredHeight = (groundY - getSpawnY()) + (120 / zoom); 
+            let targetZoom = height / requiredHeight;
+            
+            if (targetZoom > 1) targetZoom = 1; 
+            zoom += (targetZoom - zoom) * 0.05; 
+
+            if (state === "SPAWNING" && ghostPiece) {
+                Body.setPosition(ghostPiece, { x: ghostPiece.position.x, y: getSpawnY() });
+            }
+
+            if (state === "DROPPING" && Date.now() - dropTime > 500) {
+                state = "SETTLING";
+            }
+
+            // O SEGREDO: A altura só atualiza AQUI, quando TODAS as peças provaram que estão estabilizadas
+            if (state === "SETTLING" && allSettled) {
+                if (activePiece) {
+                    activePiece.plugin.isSettled = true; 
+                    Body.setMass(activePiece, activePiece.mass * 1.15); // +15% de peso para a peça firmada
+                    activePiece = null; 
+                }
+
+                // Recalcula o topo APENAS baseado nas pedras que já assentaram firme
+                let currentTowerTop = platformTopY;
+                for (let body of world.bodies) {
+                    if (body.plugin && body.plugin.isSettled) {
+                        if (body.bounds.min.y < currentTowerTop) {
+                            currentTowerTop = body.bounds.min.y;
+                        }
+                    }
+                }
+
+                towerTopY = currentTowerTop;
+                
+                // Atualiza a altura do jogador e a interface visual de forma 100% segura
+                let maxStableHeightCm = Math.max(0, Math.floor((platformTopY - towerTopY) / pixelsPerCm));
+                if (maxStableHeightCm > currentHeightCm) {
+                    currentHeightCm = maxStableHeightCm;
+                }
+                
+                document.getElementById('current-height').innerText = currentHeightCm;
+
+                if (currentHeightCm > recordHeightCm) {
+                    recordHeightCm = currentHeightCm;
+                    localStorage.setItem('equilibrio_record', recordHeightCm);
+                    recordHeightY = platformTopY - (recordHeightCm * pixelsPerCm);
+                }
+
+                playSuccess(); 
+                prepareNextPiece();
+            }
+        });
+
+        // --- RENDERIZAÇÃO DE ALTA QUALIDADE ---
+        Events.on(render, 'afterRender', () => {
+            const context = render.context;
+            
+            context.clearRect(0, 0, width * pixelRatio, height * pixelRatio);
+            context.save();
+            
+            context.translate(width / 2, groundY);
+            context.scale(zoom, zoom);
+            context.translate(-width / 2, -groundY);
+
+            const allPieces = world.bodies.filter(b => b.plugin && b.plugin.isPiece);
+
+            // Sombras
+            context.fillStyle = 'rgba(0,0,0,0.3)';
+            for (let body of allPieces) {
+                if (body.plugin.isGhost && state !== "SPAWNING") continue;
+                for (let part of body.parts) {
+                    if (part === body) continue; 
+                    context.save();
+                    context.translate(part.position.x + 6, part.position.y + 6);
+                    context.rotate(part.angle);
+                    context.fillRect(-blockSize/2, -blockSize/2, blockSize, blockSize);
+                    context.restore();
+                }
+            }
+
+            let targetX = width/2;
+            if (ghostPiece && state === "SPAWNING") targetX = ghostPiece.position.x;
+            else if (activePiece && state === "DROPPING") targetX = activePiece.position.x;
+
+            if (state !== "MENU" && state !== "GAMEOVER") {
+                context.save();
+                context.fillStyle = 'rgba(0,0,0,0.3)';
+                context.translate(targetX, platformTopY);
+                context.scale(1, 0.25); 
+                context.beginPath();
+                context.arc(0, 0, blockSize * 1.5, 0, Math.PI*2);
+                context.fill();
+                context.restore();
+            }
+
+            // Base (Platô)
+            context.fillStyle = '#3d3d4b';
+            context.fillRect(width/2 - 120, platformTopY, 240, 40);
+            context.fillStyle = '#5c5c6d';
+            context.fillRect(width/2 - 120, platformTopY, 240, 8);
+
+            // Peças Sólidas Inteiriças
+            for (let body of allPieces) {
+                const isGhost = body.plugin.isGhost;
+                context.globalAlpha = isGhost ? 0.3 : 1.0;
+                
+                context.fillStyle = body.plugin.color;
+                context.lineJoin = 'round';
+                context.lineCap = 'round';
+                context.strokeStyle = body.plugin.color;
+                context.lineWidth = 1; 
+                
+                for (let part of body.parts) {
+                    if (part === body) continue; 
+                    context.save();
+                    context.translate(part.position.x, part.position.y);
+                    context.rotate(part.angle);
+                    
+                    context.beginPath();
+                    context.rect(-blockSize/2 - 0.5, -blockSize/2 - 0.5, blockSize + 1, blockSize + 1);
+                    context.fill();
+                    context.stroke(); 
+                    
+                    context.restore();
+                }
+            }
+
+            if (state === "MENU") {
+                context.restore();
+                return;
+            }
+
+            // Linha Guia Vertical
+            if (state === "SPAWNING" && ghostPiece) {
+                context.beginPath();
+                context.moveTo(ghostPiece.position.x, ghostPiece.position.y);
+                context.lineTo(ghostPiece.position.x, platformTopY);
+                context.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+                context.lineWidth = 2 / zoom; 
+                context.setLineDash([10 / zoom, 10 / zoom]);
+                context.stroke();
+                context.setLineDash([]);
+            }
+
+            // Recorde Absoluto
+            if (recordHeightCm > 0) {
+                context.beginPath();
+                context.moveTo(0, recordHeightY);
+                context.lineTo(width, recordHeightY);
+                context.strokeStyle = '#FFD32A';
+                context.lineWidth = 2 / zoom;
+                context.setLineDash([8 / zoom, 8 / zoom]);
+                context.stroke();
+                context.setLineDash([]);
+                
+                context.fillStyle = '#FFD32A';
+                context.font = `bold ${Math.max(12, 14 / zoom)}px Nunito`;
+                context.textAlign = 'left';
+                context.fillText('RECORDE', 15 / zoom, recordHeightY - (8 / zoom));
+            }
+
+            // Régua Lateral 
+            const rightEdge = width - (20 / zoom); 
+            context.beginPath();
+            context.moveTo(rightEdge, platformTopY); 
+            
+            let topVisible = groundY - (height / zoom);
+            context.lineTo(rightEdge, topVisible);
+            context.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            context.lineWidth = 2 / zoom;
+            context.stroke();
+
+            const cmStep = 10;
+            const pixelStep = cmStep * pixelsPerCm;
+            
+            context.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            context.font = `${Math.max(10, 12 / zoom)}px Nunito`;
+            context.textAlign = 'right';
+            context.textBaseline = 'middle';
+
+            let markY = platformTopY;
+            let markCm = 0;
+
+            while (markY > topVisible) {
+                context.beginPath();
+                let tickLength = (markCm % 50 === 0) ? (15 / zoom) : (6 / zoom);
+                context.moveTo(rightEdge, markY);
+                context.lineTo(rightEdge - tickLength, markY);
+                context.stroke();
+
+                if (markCm % 50 === 0 && markCm > 0) {
+                    context.fillText(markCm + " cm", rightEdge - (20 / zoom), markY);
+                }
+                markY -= pixelStep;
+                markCm += cmStep;
+            }
+
+            context.restore();
+        });
+
+        window.addEventListener('resize', () => {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            render.canvas.width = width * pixelRatio;
+            render.canvas.height = height * pixelRatio;
+            render.canvas.style.width = width + 'px';
+            render.canvas.style.height = height + 'px';
+            render.options.width = width;
+            render.options.height = height;
+        });
+
+        function startGame() {
+            initAudio();
+            playClick(); 
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('ui-ingame').classList.remove('hidden');
+            prepareNextPiece();
+        }
+
+        function triggerGameOver() {
+            state = "GAMEOVER";
+            playLose();
+            
+            if (ghostPiece) {
+                Composite.remove(world, ghostPiece);
+                ghostPiece = null;
+            }
+            
+            // O recorde exibido é puramente baseado na última altura 100% segura confirmada!
+            document.getElementById('final-score').innerText = currentHeightCm + " cm";
+            document.getElementById('final-record').innerText = recordHeightCm + " cm";
+            document.getElementById('ui-ingame').classList.add('hidden');
+            document.getElementById('game-over-screen').classList.remove('hidden');
+        }
+
+        function resetGame() {
+            playClick(); 
+            let bodiesToRemove = world.bodies.filter(b => b.plugin && b.plugin.isPiece);
+            Composite.remove(world, bodiesToRemove);
+            
+            towerTopY = platformTopY;
+            currentHeightCm = 0;
+            activePiece = null;
+            ghostPiece = null;
+            zoom = 1.0; 
+            
+            document.getElementById('current-height').innerText = "0";
+            
+            recordHeightCm = parseInt(localStorage.getItem('equilibrio_record')) || 0;
+            recordHeightY = platformTopY - (recordHeightCm * pixelsPerCm);
+            
+            document.getElementById('game-over-screen').classList.add('hidden');
+            document.getElementById('ui-ingame').classList.remove('hidden');
+            
+            prepareNextPiece();
+        }
+    </script>
+</body>
+</html>
