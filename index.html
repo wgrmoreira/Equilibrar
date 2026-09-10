@@ -10,7 +10,7 @@
         body, html {
             margin: 0;
             padding: 0;
-            background-color: #1e1e24;
+            background-color: #111116;
             color: #ffffff;
             font-family: 'Nunito', sans-serif;
             width: 100%;
@@ -25,14 +25,23 @@
             top: 0; left: 0; right: 0; bottom: 0;
             width: 100%; 
             height: 100%;
-            background: linear-gradient(180deg, #181822 0%, #292a35 100%);
+            background: radial-gradient(circle at center, #1b1c25 0%, #0a0a0e 100%);
             overflow: hidden;
+        }
+
+        #bg-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1; 
+            pointer-events: none;
         }
 
         #canvas-container {
             position: absolute;
             top: 0; left: 0;
             width: 100%; height: 100%;
+            z-index: 5; 
         }
 
         canvas {
@@ -48,7 +57,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: rgba(24, 24, 34, 0.85);
+            background: rgba(10, 10, 14, 0.85);
             backdrop-filter: blur(5px);
             z-index: 20;
             opacity: 1;
@@ -107,7 +116,7 @@
             font-size: 3.5rem;
             margin: 0;
             color: #FF4757;
-            text-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            text-shadow: 0 4px 15px rgba(255, 71, 87, 0.4);
             letter-spacing: 2px;
             text-align: center;
         }
@@ -121,7 +130,7 @@
         }
 
         .stats-box {
-            background: rgba(0,0,0,0.4);
+            background: rgba(0,0,0,0.6);
             border-radius: 20px;
             padding: 25px 50px;
             margin-bottom: 30px;
@@ -142,9 +151,10 @@
             font-size: 2.2rem;
             display: block;
             margin-top: 5px;
+            text-shadow: 0 0 10px rgba(255, 211, 42, 0.4);
         }
 
-        button {
+        .btn-primary {
             background: #FF4757;
             color: #ffffff;
             border: none;
@@ -156,11 +166,34 @@
             box-shadow: 0 6px 0 #d63031, 0 10px 20px rgba(0,0,0,0.3);
             transition: transform 0.1s, box-shadow 0.1s;
             text-transform: uppercase;
+            margin-bottom: 15px;
         }
 
-        button:active {
+        .btn-primary:active {
             transform: translateY(6px);
             box-shadow: 0 0 0 #d63031, 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: #a4b0be;
+            border: 2px solid #a4b0be;
+            padding: 10px 30px;
+            font-size: 1rem;
+            font-family: 'Fredoka One', cursive;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+        }
+
+        .btn-secondary:hover {
+            background: #a4b0be;
+            color: #111116;
+        }
+
+        .btn-secondary:active {
+            transform: translateY(2px);
         }
 
         #ui-ingame {
@@ -184,6 +217,7 @@
         .score-display span {
             font-size: 3rem;
             color: #FFD32A;
+            text-shadow: 0 0 15px rgba(255, 211, 42, 0.3);
         }
 
         @media (max-width: 600px) {
@@ -192,7 +226,8 @@
             .stats-box { padding: 15px 30px; margin-bottom: 20px; }
             .stats-text { font-size: 1rem; }
             .stats-highlight { font-size: 1.8rem; }
-            button { padding: 12px 40px; font-size: 1.1rem; }
+            .btn-primary { padding: 12px 40px; font-size: 1.1rem; }
+            .btn-secondary { padding: 8px 25px; font-size: 0.9rem; }
             
             #ui-ingame { top: 15px; left: 15px; }
             .score-display { font-size: 1.2rem; }
@@ -204,6 +239,8 @@
 <body>
 
     <div id="game-wrapper">
+        <canvas id="bg-canvas"></canvas> 
+        
         <div id="ui-ingame" class="hidden">
             <div class="score-display"><span id="current-height">0</span> cm</div>
         </div>
@@ -218,8 +255,9 @@
                 <div class="art-box2"></div>
             </div>
             <h1>Equilíbrio!</h1>
-            <div class="subtitle">Arraste para mirar e solte o dedo para largar a peça.<br>A altura só conta se a pedra ficar firme e não cair da base!</div>
-            <button id="btn-start" onmouseenter="playHover()" onclick="startGame()">Jogar</button>
+            <div class="subtitle">Arraste para mirar e levante o dedo para largar a peça.<br>A altura só conta se a pedra ficar firme e não cair da base!</div>
+            <button class="btn-primary" onmouseenter="playHover()" onclick="startGame()">Jogar</button>
+            <button class="btn-secondary" onmouseenter="playHover()" onclick="clearRecord()">Limpar Recorde</button>
         </div>
 
         <div id="game-over-screen" class="overlay hidden">
@@ -228,11 +266,85 @@
                 <div class="stats-text">Altura Estabilizada: <span id="final-score" class="stats-highlight">0 cm</span></div>
                 <div class="stats-text" style="margin-top: 15px;">Recorde Atual: <span id="final-record" class="stats-highlight" style="color: #0be881;">0 cm</span></div>
             </div>
-            <button onmouseenter="playHover()" onclick="resetGame()">Tentar Novamente</button>
+            <button class="btn-primary" onmouseenter="playHover()" onclick="resetGame()">Tentar Novamente</button>
+            <button class="btn-secondary" onmouseenter="playHover()" onclick="clearRecord()">Limpar Recorde</button>
         </div>
     </div>
 
     <script>
+        // --- EFEITO DE FUNDO 3D (LINHAS EM GLOW) ---
+        const bgCanvas = document.getElementById('bg-canvas');
+        const bgCtx = bgCanvas.getContext('2d');
+        let bgW = window.innerWidth;
+        let bgH = window.innerHeight;
+        bgCanvas.width = bgW;
+        bgCanvas.height = bgH;
+
+        const bgColors = ['#FF4757', '#2ED573', '#1E90FF', '#FFA502', '#9B59B6', '#00D8D6'];
+        const warpLines = [];
+        const numLines = 35; 
+
+        class WarpLine {
+            constructor() {
+                this.reset();
+                this.z = Math.random() * 2000; 
+            }
+            reset() {
+                this.x = (Math.random() - 0.5) * 4000;
+                this.y = (Math.random() - 0.5) * 4000;
+                this.z = 10; 
+                this.length = Math.random() * 200 + 50;
+                this.speed = Math.random() * 5 + 2; 
+                this.color = bgColors[Math.floor(Math.random() * bgColors.length)];
+            }
+            update() {
+                this.z += this.speed; 
+                if (this.z > 2000) {
+                    this.reset();
+                }
+            }
+            draw() {
+                let fov = 400; 
+                
+                let sx = (this.x / this.z) * fov + bgW / 2;
+                let sy = (this.y / this.z) * fov + bgH / 2;
+
+                let tailZ = this.z - this.length;
+                if (tailZ < 1) tailZ = 1;
+                let px = (this.x / tailZ) * fov + bgW / 2;
+                let py = (this.y / tailZ) * fov + bgH / 2;
+
+                let opacity = 1 - (this.z / 2000);
+
+                bgCtx.beginPath();
+                bgCtx.moveTo(px, py);
+                bgCtx.lineTo(sx, sy);
+                bgCtx.lineWidth = 1.5;
+                bgCtx.strokeStyle = this.color;
+                
+                bgCtx.globalAlpha = Math.max(0, opacity * 0.7); 
+                bgCtx.shadowBlur = 15;
+                bgCtx.shadowColor = this.color;
+                bgCtx.stroke();
+                
+                bgCtx.globalAlpha = 1;
+                bgCtx.shadowBlur = 0;
+            }
+        }
+
+        for (let i = 0; i < numLines; i++) warpLines.push(new WarpLine());
+
+        function animateBackground() {
+            bgCtx.clearRect(0, 0, bgW, bgH);
+            for (let line of warpLines) {
+                line.update();
+                line.draw();
+            }
+            requestAnimationFrame(animateBackground);
+        }
+        animateBackground();
+
+
         // --- SISTEMA DE ÁUDIO ---
         let audioCtx;
         function initAudio() {
@@ -378,11 +490,9 @@
 
         function createPieceBody(x, y, shapeCoords, color, isGhost = false) {
             let parts = [];
-            
             for (let c of shapeCoords) {
                 parts.push(Bodies.rectangle(c[0]*blockSize, c[1]*blockSize, blockSize, blockSize));
             }
-            
             let body = Body.create({ 
                 parts: parts, 
                 friction: 1.0,           
@@ -400,13 +510,18 @@
                     isSettled: false
                 }
             });
-
             Body.setPosition(body, { x: x, y: y });
             return body;
         }
 
         function getSpawnY() {
-            return towerTopY - (280 / zoom); 
+            let visualTop = platformTopY;
+            for (let body of world.bodies) {
+                if (body.plugin && body.plugin.isPiece && !body.plugin.isGhost) {
+                    if (body.bounds.min.y < visualTop) visualTop = body.bounds.min.y;
+                }
+            }
+            return visualTop - (280 / zoom); 
         }
 
         function prepareNextPiece() {
@@ -416,6 +531,7 @@
             
             if (ghostPiece) Composite.remove(world, ghostPiece);
             
+            mouseX = width / 2;
             ghostPiece = createPieceBody(mouseX, getSpawnY(), currentPieceType.coords, currentPieceType.color, true);
             Composite.add(world, ghostPiece);
             state = "SPAWNING";
@@ -423,22 +539,57 @@
             playSpawn(); 
         }
 
-        // --- CONTROLES ---
-        function updatePointer(clientX) {
-            if (state !== "SPAWNING") return;
-            const rect = render.canvas.getBoundingClientRect();
-            const scaleX = render.canvas.width / rect.width;
-            
-            let rawMouseX = (clientX - rect.left) * scaleX;
-            mouseX = ((rawMouseX - width / 2) / zoom) + (width / 2);
-            
+        // --- CONTROLES RESPONSIVOS ---
+        let touchDragging = false;
+        let touchStartX = 0;
+        let pieceStartX = 0;
+
+        const gameWrapper = document.getElementById('game-wrapper');
+        
+        gameWrapper.addEventListener('touchstart', (e) => {
+            if (e.target.tagName === 'BUTTON' || state !== "SPAWNING") return;
+            e.preventDefault(); 
+            touchDragging = true;
+            touchStartX = e.touches[0].clientX;
+            pieceStartX = ghostPiece.position.x;
+        }, { passive: false });
+        
+        gameWrapper.addEventListener('touchmove', (e) => {
+            if (!touchDragging || state !== "SPAWNING") return;
+            e.preventDefault(); 
+            let deltaX = e.touches[0].clientX - touchStartX;
+            mouseX = pieceStartX + (deltaX / zoom);
             const margin = blockSize * 2;
             mouseX = Math.max(margin, Math.min(width - margin, mouseX));
 
             if (ghostPiece) {
                 Body.setPosition(ghostPiece, { x: mouseX, y: getSpawnY() });
             }
-        }
+        }, { passive: false });
+
+        gameWrapper.addEventListener('touchend', (e) => {
+            if (!touchDragging || state !== "SPAWNING") return;
+            e.preventDefault(); 
+            touchDragging = false;
+            triggerDrop(); 
+        }, { passive: false });
+
+        document.addEventListener('mousemove', (e) => {
+            if (touchDragging || state !== "SPAWNING") return;
+            let rawMouseX = e.clientX;
+            mouseX = ((rawMouseX - width / 2) / zoom) + (width / 2);
+            const margin = blockSize * 2;
+            mouseX = Math.max(margin, Math.min(width - margin, mouseX));
+
+            if (ghostPiece) {
+                Body.setPosition(ghostPiece, { x: mouseX, y: getSpawnY() });
+            }
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            if (e.target.tagName === 'BUTTON' || touchDragging || state !== "SPAWNING") return;
+            triggerDrop();
+        });
 
         function triggerDrop() {
             if (state === "SPAWNING" && ghostPiece) {
@@ -460,30 +611,7 @@
             }
         }
 
-        document.addEventListener('mousemove', (e) => updatePointer(e.clientX));
-        document.addEventListener('mouseup', (e) => {
-            if (e.target.tagName !== 'BUTTON') triggerDrop();
-        });
-
-        const gameWrapper = document.getElementById('game-wrapper');
-        gameWrapper.addEventListener('touchstart', (e) => {
-            if (e.target.tagName === 'BUTTON') return;
-            e.preventDefault(); 
-            updatePointer(e.touches[0].clientX);
-        }, { passive: false });
-        
-        gameWrapper.addEventListener('touchmove', (e) => {
-            if (e.target.tagName === 'BUTTON') return;
-            e.preventDefault(); 
-            updatePointer(e.touches[0].clientX);
-        }, { passive: false });
-
-        gameWrapper.addEventListener('touchend', (e) => {
-            if (e.target.tagName === 'BUTTON') return;
-            e.preventDefault(); 
-            triggerDrop(); 
-        }, { passive: false });
-
+        // --- SISTEMA DE COLISÕES E MOTOR ---
         Events.on(engine, 'collisionStart', function(event) {
             if(state === "MENU" || state === "GAMEOVER") return;
             let playedThud = false;
@@ -502,6 +630,7 @@
 
             let isGameOver = false;
             let allSettled = true;
+            let visualTowerTopY = platformTopY;
 
             for (let body of world.bodies) {
                 if (!body.plugin || !body.plugin.isPiece || body.plugin.isGhost) continue;
@@ -513,8 +642,12 @@
                 if (!body.isSleeping && (body.speed > 0.2 || body.angularVelocity > 0.02)) {
                     allSettled = false;
                 }
-            }
 
+                if (body.bounds.min.y < visualTowerTopY) {
+                    visualTowerTopY = body.bounds.min.y;
+                }
+            }
+            
             if (isGameOver && state !== "GAMEOVER") {
                 triggerGameOver();
                 return;
@@ -522,7 +655,7 @@
 
             if (state === "GAMEOVER") return;
 
-            let requiredHeight = (groundY - getSpawnY()) + (120 / zoom); 
+            let requiredHeight = (groundY - (visualTowerTopY - (280/zoom))) + (120 / zoom); 
             let targetZoom = height / requiredHeight;
             
             if (targetZoom > 1) targetZoom = 1; 
@@ -536,38 +669,35 @@
                 state = "SETTLING";
             }
 
-            // O SEGREDO: A altura só atualiza AQUI, quando TODAS as peças provaram que estão estabilizadas
             if (state === "SETTLING" && allSettled) {
                 if (activePiece) {
                     activePiece.plugin.isSettled = true; 
-                    Body.setMass(activePiece, activePiece.mass * 1.15); // +15% de peso para a peça firmada
+                    Body.setMass(activePiece, activePiece.mass * 1.15); 
                     activePiece = null; 
                 }
 
-                // Recalcula o topo APENAS baseado nas pedras que já assentaram firme
-                let currentTowerTop = platformTopY;
+                let newOfficialTop = platformTopY;
                 for (let body of world.bodies) {
                     if (body.plugin && body.plugin.isSettled) {
-                        if (body.bounds.min.y < currentTowerTop) {
-                            currentTowerTop = body.bounds.min.y;
+                        if (body.bounds.min.y < newOfficialTop) {
+                            newOfficialTop = body.bounds.min.y;
                         }
                     }
                 }
 
-                towerTopY = currentTowerTop;
+                towerTopY = newOfficialTop;
                 
-                // Atualiza a altura do jogador e a interface visual de forma 100% segura
-                let maxStableHeightCm = Math.max(0, Math.floor((platformTopY - towerTopY) / pixelsPerCm));
-                if (maxStableHeightCm > currentHeightCm) {
-                    currentHeightCm = maxStableHeightCm;
-                }
+                let stableHeightCm = Math.max(0, Math.floor((platformTopY - towerTopY) / pixelsPerCm));
                 
-                document.getElementById('current-height').innerText = currentHeightCm;
-
-                if (currentHeightCm > recordHeightCm) {
-                    recordHeightCm = currentHeightCm;
-                    localStorage.setItem('equilibrio_record', recordHeightCm);
-                    recordHeightY = platformTopY - (recordHeightCm * pixelsPerCm);
+                if (stableHeightCm > currentHeightCm) {
+                    currentHeightCm = stableHeightCm;
+                    document.getElementById('current-height').innerText = currentHeightCm;
+                    
+                    if (currentHeightCm > recordHeightCm) {
+                        recordHeightCm = currentHeightCm;
+                        localStorage.setItem('equilibrio_record', recordHeightCm);
+                        recordHeightY = platformTopY - (recordHeightCm * pixelsPerCm);
+                    }
                 }
 
                 playSuccess(); 
@@ -575,7 +705,7 @@
             }
         });
 
-        // --- RENDERIZAÇÃO DE ALTA QUALIDADE ---
+        // --- RENDERIZAÇÃO ESTILIZADA ---
         Events.on(render, 'afterRender', () => {
             const context = render.context;
             
@@ -617,7 +747,7 @@
                 context.restore();
             }
 
-            // Base (Platô)
+            // Base
             context.fillStyle = '#3d3d4b';
             context.fillRect(width/2 - 120, platformTopY, 240, 40);
             context.fillStyle = '#5c5c6d';
@@ -723,6 +853,11 @@
         });
 
         window.addEventListener('resize', () => {
+            bgW = window.innerWidth;
+            bgH = window.innerHeight;
+            bgCanvas.width = bgW;
+            bgCanvas.height = bgH;
+            
             width = window.innerWidth;
             height = window.innerHeight;
             render.canvas.width = width * pixelRatio;
@@ -750,7 +885,6 @@
                 ghostPiece = null;
             }
             
-            // O recorde exibido é puramente baseado na última altura 100% segura confirmada!
             document.getElementById('final-score').innerText = currentHeightCm + " cm";
             document.getElementById('final-record').innerText = recordHeightCm + " cm";
             document.getElementById('ui-ingame').classList.add('hidden');
@@ -777,6 +911,17 @@
             document.getElementById('ui-ingame').classList.remove('hidden');
             
             prepareNextPiece();
+        }
+
+        // --- FUNÇÃO PARA LIMPAR RECORDE ---
+        function clearRecord() {
+            playClick();
+            if (confirm("Tem certeza que deseja apagar o seu recorde de " + recordHeightCm + " cm?")) {
+                localStorage.removeItem('equilibrio_record');
+                recordHeightCm = 0;
+                recordHeightY = platformTopY; 
+                document.getElementById('final-record').innerText = "0 cm";
+            }
         }
     </script>
 </body>
