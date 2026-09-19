@@ -122,11 +122,12 @@
         }
         
         .subtitle {
-            font-size: 1.1rem;
+            font-size: 1rem;
             color: #a4b0be;
-            margin: 10px 0 40px 0;
+            margin: 10px 0 30px 0;
             text-align: center;
             padding: 0 20px;
+            line-height: 1.4;
         }
 
         .stats-box {
@@ -222,7 +223,7 @@
 
         @media (max-width: 600px) {
             h1 { font-size: 2.8rem; }
-            .subtitle { font-size: 1rem; margin-bottom: 30px; }
+            .subtitle { font-size: 0.95rem; margin-bottom: 25px; }
             .stats-box { padding: 15px 30px; margin-bottom: 20px; }
             .stats-text { font-size: 1rem; }
             .stats-highlight { font-size: 1.8rem; }
@@ -255,7 +256,12 @@
                 <div class="art-box2"></div>
             </div>
             <h1>Equilíbrio!</h1>
-            <div class="subtitle">Arraste para mirar e levante o dedo para largar a peça.<br>A altura só conta se a pedra ficar firme e não cair da base!</div>
+            <div class="subtitle">
+                <strong>↔ Arraste pros lados</strong> para mover.<br>
+                <strong>↕ Arraste pra cima/baixo</strong> para girar.<br>
+                Solte o dedo para derrubar a peça.<br>
+                <em>A altura oficial só conta se a estrutura não ruir!</em>
+            </div>
             <button class="btn-primary" onmouseenter="playHover()" onclick="startGame()">Jogar</button>
             <button class="btn-secondary" onmouseenter="playHover()" onclick="clearRecord()">Limpar Recorde</button>
         </div>
@@ -299,13 +305,10 @@
             }
             update() {
                 this.z += this.speed; 
-                if (this.z > 2000) {
-                    this.reset();
-                }
+                if (this.z > 2000) this.reset();
             }
             draw() {
                 let fov = 400; 
-                
                 let sx = (this.x / this.z) * fov + bgW / 2;
                 let sy = (this.y / this.z) * fov + bgH / 2;
 
@@ -344,16 +347,13 @@
         }
         animateBackground();
 
-
         // --- SISTEMA DE ÁUDIO ---
         let audioCtx;
         function initAudio() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
         }
 
         document.body.addEventListener('pointerdown', initAudio, { once: true });
@@ -384,6 +384,7 @@
         const playHover = () => playSoftTone('sine', 600, 0.1, 0.05);
         const playClick = () => playSoftTone('triangle', 400, 0.15, 0.1);
         const playSpawn = () => playSoftTone('sine', 880, 0.3, 0.05); 
+        const playRotate = () => playSoftTone('sine', 700, 0.1, 0.02); // Som suave para o giro
         const playDrop = () => playSoftTone('sine', 300, 0.4, 0.05); 
         const playThud = () => playSoftTone('square', 150, 0.1, 0.03); 
         const playSuccess = () => playChord([523.25, 659.25, 783.99], 0.5, 0.05); 
@@ -521,7 +522,7 @@
                     if (body.bounds.min.y < visualTop) visualTop = body.bounds.min.y;
                 }
             }
-            return visualTop - (280 / zoom); 
+            return visualTop - (250 / zoom); 
         }
 
         function prepareNextPiece() {
@@ -539,10 +540,52 @@
             playSpawn(); 
         }
 
+        // --- SISTEMA DE PROJEÇÃO DA QUEDA (GHOST DROP PREVIEW) ---
+        function calculateProjectionY() {
+            if (!ghostPiece) return getSpawnY();
+            let originalY = ghostPiece.position.y;
+            let projY = originalY;
+            
+            // Só testa a colisão contra a plataforma ou peças assentadas na torre
+            let obstacles = world.bodies.filter(b => b.plugin && (b.plugin.isPlatform || b.plugin.isSettled));
+
+            let collided = false;
+            // Desce rápido para achar o contato
+            while (!collided && projY < platformTopY + 100) {
+                projY += 15;
+                Body.setPosition(ghostPiece, { x: ghostPiece.position.x, y: projY });
+                if (Matter.Query.collides(ghostPiece, obstacles).length > 0) {
+                    collided = true;
+                }
+            }
+            // Sobe lentamente para encontrar o alinhamento perfeito sem penetração
+            while (collided && projY > originalY) {
+                projY -= 2;
+                Body.setPosition(ghostPiece, { x: ghostPiece.position.x, y: projY });
+                if (Matter.Query.collides(ghostPiece, obstacles).length === 0) {
+                    collided = false;
+                }
+            }
+
+            Body.setPosition(ghostPiece, { x: ghostPiece.position.x, y: originalY });
+            return projY;
+        }
+
+        // --- ROTAÇÃO DA PEÇA ---
+        function rotateGhostPiece(direction) {
+            if (!ghostPiece) return;
+            // Rota exata de 90 graus
+            let newAngle = ghostPiece.angle + (Math.PI / 2) * direction;
+            newAngle = Math.round(newAngle / (Math.PI / 2)) * (Math.PI / 2);
+            Body.setAngle(ghostPiece, newAngle);
+            playRotate();
+        }
+
         // --- CONTROLES RESPONSIVOS ---
         let touchDragging = false;
         let touchStartX = 0;
         let pieceStartX = 0;
+        let lastRotationY = 0;
 
         const gameWrapper = document.getElementById('game-wrapper');
         
@@ -551,16 +594,27 @@
             e.preventDefault(); 
             touchDragging = true;
             touchStartX = e.touches[0].clientX;
+            lastRotationY = e.touches[0].clientY;
             pieceStartX = ghostPiece.position.x;
         }, { passive: false });
         
         gameWrapper.addEventListener('touchmove', (e) => {
             if (!touchDragging || state !== "SPAWNING") return;
             e.preventDefault(); 
+            
+            // X: Mover a peça
             let deltaX = e.touches[0].clientX - touchStartX;
             mouseX = pieceStartX + (deltaX / zoom);
             const margin = blockSize * 2;
             mouseX = Math.max(margin, Math.min(width - margin, mouseX));
+
+            // Y: Rotacionar a peça (limiar de 45px de arrasto vertical para disparar o giro)
+            let currentY = e.touches[0].clientY;
+            if (Math.abs(currentY - lastRotationY) > 45) {
+                let dir = currentY > lastRotationY ? 1 : -1;
+                rotateGhostPiece(dir);
+                lastRotationY = currentY;
+            }
 
             if (ghostPiece) {
                 Body.setPosition(ghostPiece, { x: mouseX, y: getSpawnY() });
@@ -574,12 +628,32 @@
             triggerDrop(); 
         }, { passive: false });
 
+        // Eventos Mouse Desktop
+        let mouseDragging = false;
+        let lastMouseY = 0;
+
+        document.addEventListener('mousedown', (e) => {
+            if (e.target.tagName === 'BUTTON' || state !== "SPAWNING") return;
+            mouseDragging = true;
+            lastMouseY = e.clientY;
+        });
+
         document.addEventListener('mousemove', (e) => {
-            if (touchDragging || state !== "SPAWNING") return;
+            if (state !== "SPAWNING") return;
+            
+            // Mouse X sempre centraliza na peça (no desktop)
             let rawMouseX = e.clientX;
             mouseX = ((rawMouseX - width / 2) / zoom) + (width / 2);
             const margin = blockSize * 2;
             mouseX = Math.max(margin, Math.min(width - margin, mouseX));
+
+            // Mouse Y arrastado roda a peça
+            if (mouseDragging) {
+                if (Math.abs(e.clientY - lastMouseY) > 45) {
+                    rotateGhostPiece(e.clientY > lastMouseY ? 1 : -1);
+                    lastMouseY = e.clientY;
+                }
+            }
 
             if (ghostPiece) {
                 Body.setPosition(ghostPiece, { x: mouseX, y: getSpawnY() });
@@ -587,19 +661,28 @@
         });
 
         document.addEventListener('mouseup', (e) => {
-            if (e.target.tagName === 'BUTTON' || touchDragging || state !== "SPAWNING") return;
+            if (e.target.tagName === 'BUTTON' || state !== "SPAWNING" || touchDragging) return;
+            mouseDragging = false;
             triggerDrop();
+        });
+
+        // Rodar com Scroll do Mouse
+        document.addEventListener('wheel', (e) => {
+            if (state !== "SPAWNING") return;
+            rotateGhostPiece(e.deltaY > 0 ? 1 : -1);
         });
 
         function triggerDrop() {
             if (state === "SPAWNING" && ghostPiece) {
                 const spawnX = ghostPiece.position.x;
                 const spawnY = ghostPiece.position.y;
+                const spawnAngle = ghostPiece.angle; // Copia a rotação decidida pelo jogador
                 
                 Composite.remove(world, ghostPiece);
                 ghostPiece = null;
 
                 activePiece = createPieceBody(spawnX, spawnY, currentPieceType.coords, currentPieceType.color, false);
+                Body.setAngle(activePiece, spawnAngle);
                 Body.setVelocity(activePiece, { x: 0, y: 0 });
                 Body.setAngularVelocity(activePiece, 0);
 
@@ -732,19 +815,27 @@
                 }
             }
 
-            let targetX = width/2;
-            if (ghostPiece && state === "SPAWNING") targetX = ghostPiece.position.x;
-            else if (activePiece && state === "DROPPING") targetX = activePiece.position.x;
+            // --- PROJEÇÃO DA QUEDA (PREVIEW) ---
+            if (state === "SPAWNING" && ghostPiece) {
+                let projY = calculateProjectionY();
+                
+                context.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                context.lineWidth = 2 / zoom;
+                context.lineJoin = 'round';
 
-            if (state !== "MENU" && state !== "GAMEOVER") {
-                context.save();
-                context.fillStyle = 'rgba(0,0,0,0.3)';
-                context.translate(targetX, platformTopY);
-                context.scale(1, 0.25); 
-                context.beginPath();
-                context.arc(0, 0, blockSize * 1.5, 0, Math.PI*2);
-                context.fill();
-                context.restore();
+                for (let part of ghostPiece.parts) {
+                    if (part === ghostPiece) continue; 
+                    context.save();
+                    // Translada apenas para onde a peça vai cair matematicamente
+                    context.translate(part.position.x, part.position.y - ghostPiece.position.y + projY);
+                    context.rotate(part.angle);
+                    
+                    context.beginPath();
+                    context.rect(-blockSize/2, -blockSize/2, blockSize, blockSize);
+                    context.stroke(); 
+                    
+                    context.restore();
+                }
             }
 
             // Base
@@ -753,7 +844,7 @@
             context.fillStyle = '#5c5c6d';
             context.fillRect(width/2 - 120, platformTopY, 240, 8);
 
-            // Peças Sólidas Inteiriças
+            // Peças Sólidas Inteiriças Reais
             for (let body of allPieces) {
                 const isGhost = body.plugin.isGhost;
                 context.globalAlpha = isGhost ? 0.3 : 1.0;
@@ -782,18 +873,6 @@
             if (state === "MENU") {
                 context.restore();
                 return;
-            }
-
-            // Linha Guia Vertical
-            if (state === "SPAWNING" && ghostPiece) {
-                context.beginPath();
-                context.moveTo(ghostPiece.position.x, ghostPiece.position.y);
-                context.lineTo(ghostPiece.position.x, platformTopY);
-                context.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-                context.lineWidth = 2 / zoom; 
-                context.setLineDash([10 / zoom, 10 / zoom]);
-                context.stroke();
-                context.setLineDash([]);
             }
 
             // Recorde Absoluto
@@ -885,6 +964,7 @@
                 ghostPiece = null;
             }
             
+            // O recorde final mostra apenas as medidas que foram salvas (antes da queda)
             document.getElementById('final-score').innerText = currentHeightCm + " cm";
             document.getElementById('final-record').innerText = recordHeightCm + " cm";
             document.getElementById('ui-ingame').classList.add('hidden');
@@ -913,7 +993,6 @@
             prepareNextPiece();
         }
 
-        // --- FUNÇÃO PARA LIMPAR RECORDE ---
         function clearRecord() {
             playClick();
             if (confirm("Tem certeza que deseja apagar o seu recorde de " + recordHeightCm + " cm?")) {
